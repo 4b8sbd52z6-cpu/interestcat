@@ -67,12 +67,12 @@ button.gilt:disabled{opacity:.5;cursor:default;}
 #interest-btn:hover{background:rgba(201,162,75,.14);box-shadow:0 0 22px rgba(201,162,75,.3);}
 #interest-btn:disabled{opacity:.5;cursor:default;}
 
-#cat-wrap{position:fixed;right:18px;bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:30;display:flex;align-items:flex-end;}
-#cat-img{width:104px;height:104px;object-fit:cover;border-radius:50%;border:3px solid var(--gold);
+#cat-wrap{position:fixed;right:32px;bottom:82px;z-index:30;display:flex;align-items:flex-end;}
+#cat-img{width:104px;height:104px;object-fit:cover;border-radius:14px 14px 24px 24px;border:3px solid var(--gold);
   box-shadow:0 6px 24px rgba(0,0,0,.55);background:#1a0a0a;transform-origin:50% 90%;display:block;}
-@keyframes talk{0%,100%{transform:rotate(0deg) scale(1);}25%{transform:rotate(-3deg) scale(1.02);}
-  50%{transform:rotate(0deg) scale(1.05);}75%{transform:rotate(3deg) scale(1.02);}}
-#cat-img.talking{animation:talk .5s ease-in-out infinite;}
+@keyframes tutorTalk{0%,100%{transform:translateY(0) rotate(0deg) scale(1);}25%{transform:translateY(-5px) rotate(-3deg) scale(1.02);}
+  50%{transform:translateY(0) rotate(0deg) scale(1.05);}75%{transform:translateY(-3px) rotate(3deg) scale(1.02);}}
+#cat-img.talking{animation:tutorTalk .5s ease-in-out infinite;}
 @keyframes idle{0%,100%{transform:translateY(0);}50%{transform:translateY(-4px);}}
 #cat-img.idle{animation:idle 3.2s ease-in-out infinite;}
 .ctrls{position:absolute;left:-38px;bottom:0;display:flex;flex-direction:column;gap:6px;}
@@ -96,7 +96,7 @@ button.gilt:disabled{opacity:.5;cursor:default;}
   border-radius:4px;cursor:pointer;}
 #visit-btn.show{display:block;}
 
-@media (max-width:520px){#cat-img{width:78px;height:78px;}#bubble{right:88px;bottom:56px;width:64vw;}.ctrls{left:-34px;}.ctrl-btn{width:26px;height:26px;}}
+@media (max-width:520px){#cat-wrap{right:18px;bottom:76px;}#cat-img{width:78px;height:78px;}#bubble{right:88px;bottom:56px;width:64vw;}.ctrls{left:-34px;}.ctrl-btn{width:26px;height:26px;}}
 
 /* ---- retro TV overlay ---- */
 #tv-overlay{position:fixed;inset:0;z-index:70;background:rgba(4,2,3,.88);display:none;
@@ -178,7 +178,7 @@ body.hid *,body.hid *::before,body.hid *::after,body.tvopen #disco,body.tvopen #
   <div id="curtain-mid">
     <div class="rope"></div>
     <div class="curtain-title">The Interest Cat</div>
-    <p class="curtain-sub">I know every corner of the internet. Let me show you one.</p>
+    <p class="curtain-sub">Ask your curious tutor cat for a fresh little rabbit hole.</p>
     <button id="enter-btn">Press to Enter</button>
   </div>
   <div class="panel right"></div>
@@ -188,7 +188,7 @@ body.hid *,body.hid *::before,body.hid *::after,body.tvopen #disco,body.tvopen #
   <header>
     <div class="kicker">A CURIOUS EXPERIMENT</div>
     <h1>The Interest Cat</h1>
-    <p class="lede">Tell me what you’re into, or press the gold button and I’ll beam you to something wonderful and real from anywhere on the web — right inside the retro TV.</p>
+    <p class="lede">Name a curiosity, or let your tutor cat pick a fresh, real corner of the public web.</p>
   </header>
   <div class="console">
     <div class="row">
@@ -206,7 +206,7 @@ body.hid *,body.hid *::before,body.hid *::after,body.tvopen #disco,body.tvopen #
     <button id="disco-btn" class="ctrl-btn" title="Disco + RGB">🩩</button>
   </div>
   <div id="bubble">
-    <span class="tag">The Interest Cat says</span>
+    <span class="tag">Tutor Cat says</span>
     <span id="bubble-text"></span>
     <button id="visit-btn">▸ beam me there</button>
   </div>
@@ -238,8 +238,8 @@ body.hid *,body.hid *::before,body.hid *::after,body.tvopen #disco,body.tvopen #
   let pickedVoice = null;
   function loadVoice(){
     const vs = speechSynthesis.getVoices();
-    const prefs = ['Google UK English Female','Samantha','Google US English','Karen','Zira','Victoria'];
-    pickedVoice = vs.find(v => prefs.includes(v.name)) || vs.find(v => /female|karen|zira|samantha/i.test(v.name)) || vs[0] || null;
+    const prefs = ['Microsoft Zira - English (United States)','Google UK English Female','Samantha','Karen','Victoria','Google US English'];
+    pickedVoice = vs.find(v => prefs.includes(v.name)) || vs.find(v => /female|karen|zira|samantha|child|junior/i.test(v.name)) || vs[0] || null;
   }
   speechSynthesis.onvoiceschanged = loadVoice; loadVoice();
   function say(text){
@@ -247,7 +247,7 @@ body.hid *,body.hid *::before,body.hid *::after,body.tvopen #disco,body.tvopen #
     speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
     if(pickedVoice) u.voice = pickedVoice;
-    u.pitch = 1.55; u.rate = 1.12; u.volume = 0.9;
+    u.pitch = 1.7; u.rate = 1.04; u.volume = 0.9;
     speechSynthesis.speak(u);
   }
 
@@ -307,7 +307,7 @@ body.hid *,body.hid *::before,body.hid *::after,body.tvopen #disco,body.tvopen #
     confetti(50);
     setTimeout(() => {
       curtain.remove();
-      speak("Mrrow~ I know every corner of the whole internet. Press Interest Me and let's go somewhere wonderful.", false);
+      speak("Mrrp! I am your tutor cat. Ask me anything and I will find you a fun place to learn.", false);
       stopTalking();
     }, 1250);
   });
@@ -401,8 +401,11 @@ body.hid *,body.hid *::before,body.hid *::after,body.tvopen #disco,body.tvopen #
       const j=JSON.parse(r.text.match(/\{[\s\S]*\}/)[0]);
       if(okUrl(j.url)&&!BLOCK.test(j.name)&&!BLOCK.test(j.desc)&&await probeAlive(j.url)) return {name:String(j.name).slice(0,60),url:new URL(j.url).href,desc:String(j.desc).slice(0,200),ch:String(10+Math.floor(Math.random()*80))};
     }catch(e){} }
-    const t=(topic||'').toLowerCase(), fresh=SITES.filter(x=>okUrl(x.url)), hit=fresh.filter(x=>t&&(x.name+x.desc).toLowerCase().includes(t));
-    const list=hit.length?hit:fresh.length?fresh:SITES; return list[Math.floor(Math.random()*list.length)];
+    const t=(topic||'').toLowerCase();
+    const fresh=SITES.filter(x=>okUrl(x.url));
+    const hit=fresh.filter(x=>t && (x.name+' '+x.desc).toLowerCase().includes(t));
+    const pool=hit.length?hit:(fresh.length?fresh:SITES);
+    return pool[Math.floor(Math.random()*pool.length)];
   }
 
   // ---------- retro TV virtual site machine ----------
@@ -413,13 +416,21 @@ body.hid *,body.hid *::before,body.hid *::after,body.tvopen #disco,body.tvopen #
   async function tuneIn(){
     if(busy) return; busy=true; const topic=$('question').value.trim();
     tv.classList.add('show'); document.body.classList.add('tvopen'); stat.classList.add('on'); frame.src='about:blank';
-    $('tv-channel').textContent='SCANNING THE WEB\u2026'; $('tv-url').textContent=''; speak('Scanning the whole internet\u2026',true);
+    $('tv-channel').textContent='SCANNING THE WEB\u2026'; $('tv-url').textContent=''; speak('Consulting the public web\u2026',true);
     const [site]=await Promise.all([findSite(topic),wait(900)]);
     seen.push(site.url); cur=site; setZoom(1);
     frame.onload=()=>stat.classList.remove('on'); setTimeout(()=>stat.classList.remove('on'),3000);
     frame.src=site.url;
     $('tv-channel').textContent='CH '+site.ch+' \u00b7 '+site.name; $('tv-url').textContent=site.url.replace(/^https:\/\//,'');
-    speak(site.desc,false); say(site.desc); stopTalking(); confetti(40); busy=false;
+    const omens=[
+      'Class is in session! This curious detour has something fun to teach you.',
+      'A fresh lesson has appeared. Click around and see what you discover.',
+      'Your curiosity gets a gold star today. This is a lovely place to explore.',
+      'Excellent question! I found a strange little doorway with a lesson inside.',
+      'Your tutor recommends a side quest. There may be delightful facts ahead.'
+    ];
+    const omen=omens[Math.floor(Math.random()*omens.length)];
+    speak(omen,false); say(omen); stopTalking(); confetti(40); busy=false;
   }
   ['interest-btn','ask-btn'].forEach(id=>$(id).addEventListener('click',tuneIn));
   $('question').addEventListener('keydown',e=>{ if(e.key==='Enter') tuneIn(); });
