@@ -340,7 +340,7 @@ body.hid *,body.hid *::before,body.hid *::after,body.tvopen #disco,body.tvopen #
   // ---------- radio ----------
   const $=id=>document.getElementById(id);
   const STATIONS=[
-    {n:'Cat Jazz (built-in)',u:null},
+    {n:'Original Chill Jazz (built-in)',u:null},
     {n:'SomaFM Groove Salad',u:'https://ice1.somafm.com/groovesalad-128-mp3'},
     {n:'SomaFM Beat Blender',u:'https://ice1.somafm.com/beatblender-128-mp3'},
     {n:'SomaFM Underground 80s',u:'https://ice1.somafm.com/u80s-128-mp3'},
@@ -375,7 +375,7 @@ body.hid *,body.hid *::before,body.hid *::after,body.tvopen #disco,body.tvopen #
   radioPaint();
 
   // ---------- the whole web: sites + blacklist ----------
-  const BLOCK=/useless\s*-?web|neal\.fun|\b(porn|xxx|nsfw|hentai|onlyfans|escort|hookup|cam-?girl|gambl\w*|casino|sports-?bet\w*|poker|drugs?|narcotic|weapon|firearm|gore|torture|self-?harm|suicide|hate|nazi|extremis\w*|torrent|piracy|warez|crack(ed)?-?software)\b/i;
+  const BLOCK=/useless\s*-?web|neal\.fun|\b(sign[\s-]?up|log[\s-]?in|register|registration|subscribe|subscription|paywall|membership|account|porn|xxx|nsfw|hentai|onlyfans|escort|hookup|cam-?girl|gambl\w*|casino|sports-?bet\w*|poker|drugs?|narcotic|weapon|firearm|gore|torture|self-?harm|suicide|hate|nazi|extremis\w*|torrent|piracy|warez|crack(ed)?-?software)\b/i;
   const SITES=[
     {name:'Wikipedia Roulette',url:'https://en.wikipedia.org/wiki/Special:Random',ch:'02',desc:'A random rabbit hole from the whole of Wikipedia. Could be anything.'},
     {name:"NASA's Daily Sky",url:'https://apod.nasa.gov/apod/astropix.html',ch:'07',desc:"Today's astronomy picture, straight from NASA."},
@@ -400,7 +400,8 @@ body.hid *,body.hid *::before,body.hid *::after,body.tvopen #disco,body.tvopen #
   ];
   let seen=[], sample=null, cur=null, busy=false;
   (async()=>{ try{ sample = window.claude ? await window.claude.use('sample') : null; }catch(e){ sample=null; } })();
-  const okUrl=u=>{ try{ const x=new URL(u); return x.protocol==='https:'&&!BLOCK.test(x.href)&&!seen.includes(x.href); }catch(e){ return false; } };
+  const canonicalUrl=u=>{ try{ const x=new URL(u); return x.href.replace(/\/$/,''); }catch(e){ return null; } };
+  const okUrl=u=>{ const url=canonicalUrl(u); return !!url&&!BLOCK.test(url)&&!seen.includes(url); };
   async function probeAlive(url){
     try{
       const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),2500);
@@ -412,10 +413,11 @@ body.hid *,body.hid *::before,body.hid *::after,body.tvopen #disco,body.tvopen #
     if(sample){ try{
       const r=await sample([{role:'user',content:'You are the Interest Cat. You may choose ANY real, currently-live website on the public web; do not limit yourself to the built-in examples, a shortlist, or specific named sites. Go wide: obscure blogs, indie tools, archives, generators, museums, oddities, forgotten corners, and useful surprises. Pick ONE genuinely fascinating website'+(topic?' related to: '+topic:'')+'. It must actually exist and load right now \u2014 never invent or guess a domain, and never suggest a site you are not confident is real. It must be safe-for-work and appropriate for all ages: absolutely no adult, violent, gambling, illegal, or hateful content. Prefer creative, educational or wonderfully weird independent sites that work inside an iframe. Never suggest theuselessweb.com or neal.fun, nor any of these already shown: '+(seen.slice(-8).join(', ')||'none')+'. Reply with ONLY raw JSON, no markdown fences: {"name":"","url":"https://...","desc":"one playful sentence"}'}],{modelTier:'quick'});
       const j=JSON.parse(r.text.match(/\{[\s\S]*\}/)[0]);
-      if(okUrl(j.url)&&!BLOCK.test(j.name)&&!BLOCK.test(j.desc)&&await probeAlive(j.url)) return {name:String(j.name).slice(0,60),url:new URL(j.url).href,desc:String(j.desc).slice(0,200),ch:String(10+Math.floor(Math.random()*80))};
+      if(okUrl(j.url)&&!BLOCK.test(j.name)&&!BLOCK.test(j.desc)&&await probeAlive(j.url)) return {name:String(j.name).slice(0,60),url:canonicalUrl(j.url),desc:String(j.desc).slice(0,200),ch:String(10+Math.floor(Math.random()*80))};
     }catch(e){} }
     const t=(topic||'').toLowerCase();
-    const fresh=SITES.filter(x=>okUrl(x.url));
+    let fresh=SITES.filter(x=>okUrl(x.url)&&!BLOCK.test(x.name+' '+x.desc));
+    if(!fresh.length){ seen=[]; fresh=SITES.filter(x=>!BLOCK.test(x.name+' '+x.desc)); }
     const hit=fresh.filter(x=>t && (x.name+' '+x.desc).toLowerCase().includes(t));
     const pool=hit.length?hit:(fresh.length?fresh:SITES);
     return pool[Math.floor(Math.random()*pool.length)];
@@ -432,20 +434,13 @@ body.hid *,body.hid *::before,body.hid *::after,body.tvopen #disco,body.tvopen #
       tv.classList.add('show'); document.body.classList.add('tvopen'); stat.classList.add('on'); frame.src='about:blank';
       $('tv-channel').textContent='SCANNING THE WEB\u2026'; $('tv-url').textContent=''; speak('Consulting the public web\u2026',true);
       const [site]=await Promise.all([findSite(topic),wait(900)]);
-      seen.push(site.url); cur=site; setZoom(1);
+      seen.push(canonicalUrl(site.url)); cur=site; setZoom(1);
       frame.onload=()=>stat.classList.remove('on');
       setTimeout(()=>stat.classList.remove('on'),1800);
       frame.src=site.url;
       $('tv-channel').textContent='CH '+site.ch+' \u00b7 '+site.name; $('tv-url').textContent=site.url.replace(/^https:\/\//,'');
-      const omens=[
-        'A curious detour has appeared. See what catches your eye.',
-        'A fresh little rabbit hole is open. Click around and wander.',
-        'Your curiosity has good timing. This looks worth exploring.',
-        'Excellent question! I found a strange little doorway for you.',
-        'Here is a pleasant side quest for your next few minutes.'
-      ];
-      const omen=omens[Math.floor(Math.random()*omens.length)];
-      speak(omen,false); say(omen); stopTalking(); confetti(40);
+      const explanation=site.desc||'A curious little corner of the web has appeared. See what catches your eye.';
+      speak(explanation,false); say(explanation); stopTalking(); confetti(40);
     }catch(e){
       stat.classList.remove('on');
       speak('That lesson got shy. Try the next site button for another one.',false);
