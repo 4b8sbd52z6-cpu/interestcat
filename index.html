@@ -15,8 +15,10 @@
 body{background:radial-gradient(ellipse at 50% 15%,#2a1420 0%,var(--ink) 65%);
 
 font-family:'Cormorant Garamond',serif;color:var(--parchment);overflow-x:hidden;min-height:100%;
-padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);}
+padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+background-size:160% 160%;animation:bgshift 22s ease-in-out infinite;}
 @keyframes bgshift{0%,100%{background-position:50% 0%;}50%{background-position:50% 100%;}}
+@media (prefers-reduced-motion:reduce){body{animation:none;}}
 h1,.display{font-family:'Cinzel',serif;letter-spacing:.03em;}
 
 #curtain{position:fixed;inset:0;z-index:60;display:flex;}
@@ -156,6 +158,9 @@ button.gilt:disabled{opacity:.5;cursor:default;}
 .console::before{content:"";display:none;position:absolute;inset:-60%;z-index:-2;background:conic-gradient(#f0f,#0ff,#ff0,#f0f);animation:spin 6s linear infinite}
 .console::after{content:"";position:absolute;inset:2px;border-radius:5px;background:#1a0d12;z-index:-1}
 body.party .console::before{display:block}
+body.party .console{animation:neonpulse 2.6s ease-in-out infinite;}
+@keyframes neonpulse{0%,100%{box-shadow:0 0 40px rgba(201,162,75,.06);}50%{box-shadow:0 0 30px var(--neon),0 0 60px rgba(255,111,174,.25);}}
+@media (prefers-reduced-motion:reduce){body.party .console{animation:none;}}
 #disco{position:fixed;inset:-25%;z-index:0;pointer-events:none;opacity:.15;will-change:transform;
  background:conic-gradient(#ff2d95,transparent 10%,#22ddff,transparent 22%,#99ff22,transparent 35%,#ff9900,transparent 47%,#aa33ff,transparent 60%,#22ddff,transparent 72%,#ff22aa,transparent 85%,#ff2d95);animation:spin 30s linear infinite}
 #ball{position:fixed;top:0;left:50%;margin-left:-22px;width:44px;z-index:2;text-align:center;pointer-events:none;transform-origin:50% 0;animation:sway 4s ease-in-out infinite alternate}
@@ -209,7 +214,7 @@ body.hid *,body.hid *::before,body.hid *::after,body.tvopen #disco,body.tvopen #
 </div>
 
 <div id="disco"></div><div id="ball"><span>🩩</span></div>
-<div id="radio"><button id="r-prev" title="Previous station">◀</button><button id="radio-btn" title="Radio on/off">▶</button><button id="r-next" title="Next station">▶▶</button><span id="radio-name">📻</span></div>
+<div id="radio"><button id="radio-btn" title="Radio on/off">▶</button><span id="radio-name">📻 Cat Jazz</span></div>
 <div id="tv-overlay"><div id="tv"><div id="tv-antenna"></div><div id="tv-body">
 <div id="tv-bar"><span id="tv-channel"></span><span id="tv-url"></span></div>
 <div id="tv-screen"><div id="tv-inner"><div id="tv-view"><iframe id="tv-frame" title="Virtual site machine" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerpolicy="no-referrer"></iframe></div><div id="tv-static"></div></div></div>
@@ -302,7 +307,7 @@ body.hid *,body.hid *::before,body.hid *::after,body.tvopen #disco,body.tvopen #
     confetti(50);
     setTimeout(() => {
       curtain.remove();
-      speak("Meow. Press Interest Me and I will teleport you somewhere on the web.", false);
+      speak("Mrrow~ I know every corner of the whole internet. Press Interest Me and let's go somewhere wonderful.", false);
       stopTalking();
     }, 1250);
   });
@@ -336,28 +341,36 @@ body.hid *,body.hid *::before,body.hid *::after,body.tvopen #disco,body.tvopen #
     {n:'SomaFM Beat Blender',u:'https://ice1.somafm.com/beatblender-128-mp3'},
     {n:'SomaFM Underground 80s',u:'https://ice1.somafm.com/u80s-128-mp3'},
     {n:'SomaFM Illinois St Lounge',u:'https://ice1.somafm.com/illstreet-128-mp3'}];
-  let st=1, radioOn=false, discoOn=!matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let st=1, radioOn=false, discoOn=!matchMedia('(prefers-reduced-motion: reduce)').matches, playToken=0;
   const au=new Audio(); au.preload='none'; au.volume=.5;
   function radioPaint(){
-    const on=radioOn||musicOn; $('radio-btn').textContent=on?'\u23f8':'\u25b6'; $('radio-name').textContent='\U0001F4FB '+STATIONS[st].n;
+    const on=radioOn||musicOn; $('radio-btn').textContent=on?'\u23f8':'\u25b6'; $('radio-name').textContent='📻 '+STATIONS[st].n;
     $('disco-btn').style.opacity=discoOn?1:.45; document.body.classList.toggle('party',on&&discoOn);
   }
-  function radioStop(){ au.pause(); au.removeAttribute('src'); au.load(); stopMusic(); radioOn=false; radioPaint(); }
+  function hardStop(){ au.onerror=null; au.pause(); au.removeAttribute('src'); au.load(); stopMusic(); radioOn=false; }
+  function radioStop(){ playToken++; hardStop(); radioPaint(); }
   function radioPlay(){
-    radioStop(); const s=STATIONS[st];
+    const myToken=++playToken;
+    hardStop();
+    const s=STATIONS[st];
     if(!s.u){ startMusic(); return; }
-    au.src=s.u; au.play().then(()=>{radioOn=true;radioPaint();}).catch(()=>{st=0;radioPlay();});
+    radioPaint();
+    au.onerror=()=>{ if(myToken===playToken) skipBroken(); };
+    au.src=s.u; au.load();
+    au.play().then(()=>{ if(myToken===playToken){ radioOn=true; radioPaint(); } })
+             .catch(()=>{ if(myToken===playToken) skipBroken(); });
   }
-  au.addEventListener('error',()=>{ if(au.getAttribute('src')&&st){st=0;radioPlay();} });
+  function skipBroken(){
+    for(let i=1;i<STATIONS.length;i++){ const idx=(st+i)%STATIONS.length; if(STATIONS[idx].u){ st=idx; radioPlay(); return; } }
+    st=0; radioPlay();
+  }
   $('radio-btn').onclick=()=>(radioOn||musicOn)?radioStop():radioPlay();
-  const hop=d=>{ const was=radioOn||musicOn; st=(st+d+STATIONS.length)%STATIONS.length; was?radioPlay():radioPaint(); };
-  $('r-prev').onclick=()=>hop(-1); $('r-next').onclick=()=>hop(1);
   $('disco-btn').onclick=()=>{ discoOn=!discoOn; radioPaint(); };
   document.addEventListener('visibilitychange',()=>document.body.classList.toggle('hid',document.hidden));
   radioPaint();
 
   // ---------- the whole web: sites + blacklist ----------
-  const BLOCK=/useless\s*-?web|neal\.fun/i;
+  const BLOCK=/useless\s*-?web|neal\.fun|\b(porn|xxx|nsfw|hentai|onlyfans|escort|hookup|cam-?girl|gambl\w*|casino|sports-?bet\w*|poker|drugs?|narcotic|weapon|firearm|gore|torture|self-?harm|suicide|hate|nazi|extremis\w*|torrent|piracy|warez|crack(ed)?-?software)\b/i;
   const SITES=[
     {name:'Wikipedia Roulette',url:'https://en.wikipedia.org/wiki/Special:Random',ch:'02',desc:'A random rabbit hole from the whole of Wikipedia. Could be anything.'},
     {name:"NASA's Daily Sky",url:'https://apod.nasa.gov/apod/astropix.html',ch:'07',desc:"Today's astronomy picture, straight from NASA."},
@@ -368,16 +381,25 @@ body.hid *,body.hid *::before,body.hid *::after,body.tvopen #disco,body.tvopen #
     {name:'Radio Garden',url:'https://radio.garden',ch:'23',desc:'Spin the globe, listen to a real radio station anywhere on Earth.'},
     {name:'Cameron\u2019s World',url:'https://www.cameronsworld.net',ch:'27',desc:'A time capsule of 90s GeoCities chaos.'},
     {name:'On This Day',url:'https://en.wikipedia.org/wiki/Wikipedia:On_this_day',ch:'31',desc:"What actually happened on today's date, throughout history."},
-    {name:'Project Gutenberg',url:'https://www.gutenberg.org',ch:'36',desc:'Seventy thousand free books, waiting for you.'}
+    {name:'Project Gutenberg',url:'https://www.gutenberg.org',ch:'36',desc:'Seventy thousand free books, waiting for you.'},
+    {name:'Window Swap',url:'https://www.window-swap.com',ch:'42',desc:"Swap your view for a stranger's window, somewhere else on Earth."},
+    {name:'Free Rice',url:'https://freerice.com',ch:'48',desc:'Answer trivia, donate rice to the hungry with every right answer.'}
   ];
   let seen=[], sample=null, cur=null, busy=false;
-  window.claude?.use?.('sample').then(x=>{sample=x;}).catch(()=>{});
+  (async()=>{ try{ sample = window.claude ? await window.claude.use('sample') : null; }catch(e){ sample=null; } })();
   const okUrl=u=>{ try{ const x=new URL(u); return x.protocol==='https:'&&!BLOCK.test(x.href)&&!seen.includes(x.href); }catch(e){ return false; } };
+  async function probeAlive(url){
+    try{
+      const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),2500);
+      await fetch(url,{mode:'no-cors',signal:ctrl.signal});
+      clearTimeout(t); return true;
+    }catch(e){ return false; }
+  }
   async function findSite(topic){
     if(sample){ try{
-      const r=await sample([{role:'user',content:'You are the Interest Cat and you know the entire web. Pick ONE genuinely fascinating, real, working website from anywhere on the internet'+(topic?' related to: '+topic:'')+'. Prefer creative, educational or wonderfully weird independent sites that work inside an iframe. Never suggest theuselessweb.com or neal.fun, nor any of these: '+(seen.slice(-8).join(', ')||'none')+'. Reply with ONLY JSON: {"name":"","url":"https://...","desc":"one playful sentence"}'}],{modelTier:'quick'});
+      const r=await sample([{role:'user',content:'You are the Interest Cat. You may choose ANY real, currently-live website on the public web; do not limit yourself to the built-in examples, a shortlist, or specific named sites. Go wide: obscure blogs, indie tools, archives, generators, museums, oddities, forgotten corners, and useful surprises. Pick ONE genuinely fascinating website'+(topic?' related to: '+topic:'')+'. It must actually exist and load right now \u2014 never invent or guess a domain, and never suggest a site you are not confident is real. It must be safe-for-work and appropriate for all ages: absolutely no adult, violent, gambling, illegal, or hateful content. Prefer creative, educational or wonderfully weird independent sites that work inside an iframe. Never suggest theuselessweb.com or neal.fun, nor any of these already shown: '+(seen.slice(-8).join(', ')||'none')+'. Reply with ONLY raw JSON, no markdown fences: {"name":"","url":"https://...","desc":"one playful sentence"}'}],{modelTier:'quick'});
       const j=JSON.parse(r.text.match(/\{[\s\S]*\}/)[0]);
-      if(okUrl(j.url)&&!BLOCK.test(j.name)) return {name:String(j.name).slice(0,60),url:new URL(j.url).href,desc:String(j.desc).slice(0,200),ch:String(10+Math.floor(Math.random()*80))};
+      if(okUrl(j.url)&&!BLOCK.test(j.name)&&!BLOCK.test(j.desc)&&await probeAlive(j.url)) return {name:String(j.name).slice(0,60),url:new URL(j.url).href,desc:String(j.desc).slice(0,200),ch:String(10+Math.floor(Math.random()*80))};
     }catch(e){} }
     const t=(topic||'').toLowerCase(), fresh=SITES.filter(x=>okUrl(x.url)), hit=fresh.filter(x=>t&&(x.name+x.desc).toLowerCase().includes(t));
     const list=hit.length?hit:fresh.length?fresh:SITES; return list[Math.floor(Math.random()*list.length)];
