@@ -238,8 +238,8 @@ body.hid *,body.hid *::before,body.hid *::after,body.tvopen #disco,body.tvopen #
   let pickedVoice = null;
   function loadVoice(){
     const vs = speechSynthesis.getVoices();
-    const prefs = ['Microsoft Zira - English (United States)','Google UK English Female','Samantha','Karen','Victoria','Google US English'];
-    pickedVoice = vs.find(v => prefs.includes(v.name)) || vs.find(v => /female|karen|zira|samantha|child|junior/i.test(v.name)) || vs[0] || null;
+    const prefs = ['Google UK English Female','Samantha','Google US English','Karen','Zira','Victoria'];
+    pickedVoice = vs.find(v => prefs.includes(v.name)) || vs.find(v => /female|karen|zira|samantha/i.test(v.name)) || vs[0] || null;
   }
   speechSynthesis.onvoiceschanged = loadVoice; loadVoice();
   function say(text){
@@ -247,7 +247,7 @@ body.hid *,body.hid *::before,body.hid *::after,body.tvopen #disco,body.tvopen #
     speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
     if(pickedVoice) u.voice = pickedVoice;
-    u.pitch = 1.7; u.rate = 1.04; u.volume = 0.9;
+    u.pitch = 1.55; u.rate = 1.12; u.volume = 0.9;
     speechSynthesis.speak(u);
   }
 
@@ -279,9 +279,11 @@ body.hid *,body.hid *::before,body.hid *::after,body.tvopen #disco,body.tvopen #
   }
   function paintMusic(){ radioPaint(); }
   function startMusic(){
-    if(!actx) actx = new (window.AudioContext||window.webkitAudioContext)();
-    if(actx.state==='suspended') actx.resume();
-    musicOn = true; paintMusic(); scheduleBar();
+    try{
+      if(!actx){ const AudioContext=window.AudioContext||window.webkitAudioContext; if(!AudioContext) return false; actx = new AudioContext(); }
+      if(actx.state==='suspended') actx.resume();
+      musicOn = true; paintMusic(); scheduleBar(); return true;
+    }catch(e){ musicOn=false; paintMusic(); return false; }
   }
   function stopMusic(){ musicOn=false; clearTimeout(musicTimer); paintMusic(); }
 
@@ -341,7 +343,7 @@ body.hid *,body.hid *::before,body.hid *::after,body.tvopen #disco,body.tvopen #
     {n:'SomaFM Beat Blender',u:'https://ice1.somafm.com/beatblender-128-mp3'},
     {n:'SomaFM Underground 80s',u:'https://ice1.somafm.com/u80s-128-mp3'},
     {n:'SomaFM Illinois St Lounge',u:'https://ice1.somafm.com/illstreet-128-mp3'}];
-  let st=1, radioOn=false, discoOn=!matchMedia('(prefers-reduced-motion: reduce)').matches, playToken=0;
+  let st=0, radioOn=false, discoOn=!matchMedia('(prefers-reduced-motion: reduce)').matches, playToken=0;
   const au=new Audio(); au.preload='none'; au.volume=.5;
   function radioPaint(){
     const on=radioOn||musicOn; $('radio-btn').textContent=on?'\u23f8':'\u25b6'; $('radio-name').textContent='📻 '+STATIONS[st].n;
@@ -361,8 +363,9 @@ body.hid *,body.hid *::before,body.hid *::after,body.tvopen #disco,body.tvopen #
              .catch(()=>{ if(myToken===playToken) skipBroken(); });
   }
   function skipBroken(){
-    for(let i=1;i<STATIONS.length;i++){ const idx=(st+i)%STATIONS.length; if(STATIONS[idx].u){ st=idx; radioPlay(); return; } }
-    st=0; radioPlay();
+    st=0;
+    startMusic();
+    radioPaint();
   }
   $('radio-btn').onclick=()=>(radioOn||musicOn)?radioStop():radioPlay();
   $('disco-btn').onclick=()=>{ discoOn=!discoOn; radioPaint(); };
@@ -415,22 +418,28 @@ body.hid *,body.hid *::before,body.hid *::after,body.tvopen #disco,body.tvopen #
   $('zin').onclick=()=>setZoom(zoom+.2); $('zout').onclick=()=>setZoom(zoom-.2); $('zreset').onclick=()=>setZoom(1);
   async function tuneIn(){
     if(busy) return; busy=true; const topic=$('question').value.trim();
-    tv.classList.add('show'); document.body.classList.add('tvopen'); stat.classList.add('on'); frame.src='about:blank';
-    $('tv-channel').textContent='SCANNING THE WEB\u2026'; $('tv-url').textContent=''; speak('Consulting the public web\u2026',true);
-    const [site]=await Promise.all([findSite(topic),wait(900)]);
-    seen.push(site.url); cur=site; setZoom(1);
-    frame.onload=()=>stat.classList.remove('on'); setTimeout(()=>stat.classList.remove('on'),3000);
-    frame.src=site.url;
-    $('tv-channel').textContent='CH '+site.ch+' \u00b7 '+site.name; $('tv-url').textContent=site.url.replace(/^https:\/\//,'');
-    const omens=[
-      'Class is in session! This curious detour has something fun to teach you.',
-      'A fresh lesson has appeared. Click around and see what you discover.',
-      'Your curiosity gets a gold star today. This is a lovely place to explore.',
-      'Excellent question! I found a strange little doorway with a lesson inside.',
-      'Your tutor recommends a side quest. There may be delightful facts ahead.'
-    ];
-    const omen=omens[Math.floor(Math.random()*omens.length)];
-    speak(omen,false); say(omen); stopTalking(); confetti(40); busy=false;
+    try{
+      tv.classList.add('show'); document.body.classList.add('tvopen'); stat.classList.add('on'); frame.src='about:blank';
+      $('tv-channel').textContent='SCANNING THE WEB\u2026'; $('tv-url').textContent=''; speak('Consulting the public web\u2026',true);
+      const [site]=await Promise.all([findSite(topic),wait(900)]);
+      seen.push(site.url); cur=site; setZoom(1);
+      frame.onload=()=>stat.classList.remove('on');
+      setTimeout(()=>stat.classList.remove('on'),1800);
+      frame.src=site.url;
+      $('tv-channel').textContent='CH '+site.ch+' \u00b7 '+site.name; $('tv-url').textContent=site.url.replace(/^https:\/\//,'');
+      const omens=[
+        'Class is in session! This curious detour has something fun to teach you.',
+        'A fresh lesson has appeared. Click around and see what you discover.',
+        'Your curiosity gets a gold star today. This is a lovely place to explore.',
+        'Excellent question! I found a strange little doorway with a lesson inside.',
+        'Your tutor recommends a side quest. There may be delightful facts ahead.'
+      ];
+      const omen=omens[Math.floor(Math.random()*omens.length)];
+      speak(omen,false); say(omen); stopTalking(); confetti(40);
+    }catch(e){
+      stat.classList.remove('on');
+      speak('That lesson got shy. Try the next site button for another one.',false);
+    }finally{ busy=false; }
   }
   ['interest-btn','ask-btn'].forEach(id=>$(id).addEventListener('click',tuneIn));
   $('question').addEventListener('keydown',e=>{ if(e.key==='Enter') tuneIn(); });
