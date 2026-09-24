@@ -66,6 +66,9 @@ button.gilt:disabled{opacity:.5;cursor:default;}
   cursor:pointer;transition:background .2s,box-shadow .2s;}
 #interest-btn:hover{background:rgba(201,162,75,.14);box-shadow:0 0 22px rgba(201,162,75,.3);}
 #interest-btn:disabled{opacity:.5;cursor:default;}
+#wiki-btn{width:100%;margin-top:10px;background:rgba(255,255,255,.03);border:1px solid rgba(201,162,75,.45);color:var(--parchment-dim);
+  font-family:'Cinzel',serif;letter-spacing:.08em;font-size:12px;padding:10px;border-radius:4px;cursor:pointer;transition:background .2s,color .2s;}
+#wiki-btn:hover{background:rgba(201,162,75,.12);color:var(--gold-bright);}
 
 #cat-wrap{position:fixed;right:32px;bottom:82px;z-index:30;display:flex;align-items:flex-end;}
 #cat-img{width:104px;height:104px;object-fit:cover;border-radius:14px 14px 24px 24px;border:3px solid var(--gold);
@@ -197,6 +200,7 @@ body.hid *,body.hid *::before,body.hid *::after,body.tvopen #disco,body.tvopen #
     </div>
     <div class="divider">OR</div>
     <button id="interest-btn">✦ Interest Me ✦</button>
+    <button id="wiki-btn">◎ Wikipedia Roulette</button>
   </div>
 </main>
 
@@ -384,11 +388,13 @@ body.hid *,body.hid *::before,body.hid *::after,body.tvopen #disco,body.tvopen #
   // ---------- the whole web: sites + blacklist ----------
   const BLOCK=/useless\s*-?web|neal\.fun|\b(sign[\s-]?up|log[\s-]?in|register|registration|subscribe|subscription|paywall|membership|account|porn|xxx|nsfw|hentai|onlyfans|escort|hookup|cam-?girl|gambl\w*|casino|sports-?bet\w*|poker|drugs?|narcotic|weapon|firearm|gore|torture|self-?harm|suicide|hate|nazi|extremis\w*|torrent|piracy|warez|crack(ed)?-?software)\b/i;
   let seen=[], seenHosts=[];
+  let wikiSeen=[];
   try{
     seen=JSON.parse(localStorage.getItem('interest-cat-seen')||'[]').filter(url=>typeof url==='string');
     seenHosts=JSON.parse(localStorage.getItem('interest-cat-hosts')||'[]').filter(host=>typeof host==='string');
-  }catch(e){ seen=[]; seenHosts=[]; }
-  const saveSeen=()=>{ try{ localStorage.setItem('interest-cat-seen',JSON.stringify(seen)); localStorage.setItem('interest-cat-hosts',JSON.stringify(seenHosts)); }catch(e){} };
+    wikiSeen=JSON.parse(localStorage.getItem('interest-cat-wiki-seen')||'[]').filter(url=>typeof url==='string');
+  }catch(e){ seen=[]; seenHosts=[]; wikiSeen=[]; }
+  const saveSeen=()=>{ try{ localStorage.setItem('interest-cat-seen',JSON.stringify(seen)); localStorage.setItem('interest-cat-hosts',JSON.stringify(seenHosts)); localStorage.setItem('interest-cat-wiki-seen',JSON.stringify(wikiSeen)); }catch(e){} };
   const randomToken=()=>{ try{ return Array.from(crypto.getRandomValues(new Uint32Array(3))).join('-'); }catch(e){ return Math.random().toString(36).slice(2)+Date.now(); } };
   let sample=null, cur=null, busy=false;
   (async()=>{ try{ sample = window.claude ? await window.claude.use('sample') : null; }catch(e){ sample=null; } })();
@@ -440,7 +446,30 @@ body.hid *,body.hid *::before,body.hid *::after,body.tvopen #disco,body.tvopen #
       speak('That lesson got shy. Try the next site button for another one.',false);
     }finally{ busy=false; }
   }
+  async function wikiRoulette(){
+    if(busy) return; busy=true;
+    try{
+      tv.classList.add('show'); document.body.classList.add('tvopen'); stat.classList.add('on'); frame.src='about:blank';
+      $('tv-channel').textContent='WIKIPEDIA ROULETTE'; $('tv-url').textContent=''; speak('Spinning the encyclopedia…',true);
+      let page=null;
+      for(let attempt=0;attempt<5&&!page;attempt++){
+        const response=await fetch('https://en.wikipedia.org/api/rest_v1/page/random/summary',{cache:'no-store'});
+        if(!response.ok) continue;
+        const candidate=await response.json();
+        const url=canonicalUrl(candidate?.content_urls?.desktop?.page);
+        if(url&&!wikiSeen.includes(url)) page={...candidate,url};
+      }
+      if(!page) throw new Error('No fresh Wikipedia page');
+      wikiSeen.push(page.url); saveSeen(); cur={url:page.url}; setZoom(1);
+      frame.onload=()=>stat.classList.remove('on'); setTimeout(()=>stat.classList.remove('on'),1800);
+      frame.src=page.url; $('tv-channel').textContent='WIKI · '+String(page.title||'RANDOM PAGE').slice(0,52); $('tv-url').textContent=page.url.replace(/^https:\/\//,'');
+      const explanation=String(page.extract||'A fresh Wikipedia rabbit hole has appeared.').slice(0,220);
+      speak(explanation,false); say(explanation); stopTalking(); confetti(20);
+    }catch(e){ stat.classList.remove('on'); speak('The roulette wheel jammed. Try another spin.',false); }
+    finally{ busy=false; }
+  }
   ['interest-btn','ask-btn'].forEach(id=>$(id).addEventListener('click',tuneIn));
+  $('wiki-btn').addEventListener('click',wikiRoulette);
   $('question').addEventListener('keydown',e=>{ if(e.key==='Enter') tuneIn(); });
   $('tv-again').onclick=()=>{ $('question').value=''; tuneIn(); };
   $('tv-open').onclick=()=>{ if(cur) window.open(cur.url,'_blank','noopener'); };
