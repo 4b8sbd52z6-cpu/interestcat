@@ -426,6 +426,18 @@ body.hid *,body.hid *::before,body.hid *::after,body.tvopen #disco,body.tvopen #
       clearTimeout(t); return true;
     }catch(e){ return false; }
   }
+  async function randomMind(){
+    for(let attempt=0;attempt<4;attempt++){
+      try{
+        const response=await fetch('https://en.wikipedia.org/api/rest_v1/page/random/summary',{cache:'no-store'});
+        if(!response.ok) continue;
+        const page=await response.json();
+        const url=canonicalUrl(page?.content_urls?.desktop?.page);
+        if(url&&!seen.includes(url)&&!BLOCK.test(url)) return {name:String(page.title||'A curious subject').slice(0,60),url,desc:String(page.extract||'A fresh subject to explore has appeared.').slice(0,200),ch:String(10+Math.floor(Math.random()*80))};
+      }catch(e){}
+    }
+    return null;
+  }
   async function findSite(topic){
     if(sample){ try{
       const r=await sample([{role:'user',content:'Selection machine token '+randomToken()+'. You are the Interest Cat. You may choose ANY real, currently-live website on the public web; do not limit yourself to the built-in examples, a shortlist, or specific named sites. Go wide: obscure blogs, indie tools, archives, generators, museums, oddities, forgotten corners, and useful surprises. Pick ONE genuinely fascinating website'+(topic?' related to: '+topic:'')+'. It must actually exist and load right now \u2014 never invent or guess a domain, and never suggest a site you are not confident is real. It must be safe-for-work and appropriate for all ages: absolutely no adult, violent, gambling, illegal, hateful, sign-up, login, registration, subscription, membership, account, or paywall-required content. Prefer creative, educational or wonderfully weird independent sites that work inside an iframe. Never suggest theuselessweb.com or neal.fun, nor any of these already shown: '+(seenHosts.slice(-12).join(', ')||'none')+'. Reply with ONLY raw JSON, no markdown fences: {"name":"","url":"https://...","desc":"one playful sentence explaining why this is interesting"}'}],{modelTier:'quick'});
@@ -434,7 +446,11 @@ body.hid *,body.hid *::before,body.hid *::after,body.tvopen #disco,body.tvopen #
     }catch(e){} }
     const t=(topic||'').toLowerCase();
     let fresh=SITES.filter(x=>okUrl(x.url)&&!BLOCK.test(x.name+' '+x.desc));
-    if(!fresh.length){ seen=[]; seenHosts=[]; saveSeen(); fresh=SITES.filter(x=>!BLOCK.test(x.name+' '+x.desc)); }
+    if(!fresh.length){
+      const mind=await randomMind();
+      if(mind) return mind;
+      return null;
+    }
     const hit=fresh.filter(x=>t && (x.name+' '+x.desc).toLowerCase().includes(t));
     const pool=hit.length?hit:(fresh.length?fresh:SITES);
     return pool[Math.floor(Math.random()*pool.length)];
@@ -451,6 +467,7 @@ body.hid *,body.hid *::before,body.hid *::after,body.tvopen #disco,body.tvopen #
       tv.classList.add('show'); document.body.classList.add('tvopen'); stat.classList.add('on'); frame.src='about:blank';
       $('tv-channel').textContent='SCANNING THE WEB\u2026'; $('tv-url').textContent=''; speak('Consulting the public web\u2026',true);
       const [site]=await Promise.all([findSite(topic),wait(900)]);
+      if(!site) throw new Error('No fresh destination available');
       const pickedUrl=canonicalUrl(site.url), pickedHost=hostKey(pickedUrl);
       if(pickedUrl&&!seen.includes(pickedUrl)) seen.push(pickedUrl);
       if(pickedHost&&!seenHosts.includes(pickedHost)) seenHosts.push(pickedHost);
