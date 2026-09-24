@@ -257,7 +257,7 @@ body.hid *,body.hid *::before,body.hid *::after,body.tvopen #disco,body.tvopen #
   function playNote(freq,t,dur,type,vol){
     const o=actx.createOscillator(), g=actx.createGain();
     o.type=type; o.frequency.value=freq;
-    vol*=0.45;
+    vol*=0.22;
     g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(vol,t+0.02);
     g.gain.exponentialRampToValueAtTime(0.001,t+dur);
     o.connect(g); g.connect(actx.destination); o.start(t); o.stop(t+dur+0.05);
@@ -348,7 +348,7 @@ body.hid *,body.hid *::before,body.hid *::after,body.tvopen #disco,body.tvopen #
     {n:'SomaFM Underground 80s',u:'https://ice1.somafm.com/u80s-128-mp3'},
     {n:'SomaFM Illinois St Lounge',u:'https://ice1.somafm.com/illstreet-128-mp3'}];
   let st=1, radioOn=false, ytFrame=null, discoOn=!matchMedia('(prefers-reduced-motion: reduce)').matches, playToken=0;
-  const au=new Audio(); au.preload='none'; au.volume=.25;
+  const au=new Audio(); au.preload='none'; au.volume=.12;
   function radioPaint(){
     const on=radioOn||musicOn; $('radio-btn').textContent=on?'\u23f8':'\u25b6'; $('radio-name').textContent='📻 '+STATIONS[st].n;
     $('disco-btn').style.opacity=discoOn?1:.45; document.body.classList.toggle('party',on&&discoOn);
@@ -383,28 +383,6 @@ body.hid *,body.hid *::before,body.hid *::after,body.tvopen #disco,body.tvopen #
 
   // ---------- the whole web: sites + blacklist ----------
   const BLOCK=/useless\s*-?web|neal\.fun|\b(sign[\s-]?up|log[\s-]?in|register|registration|subscribe|subscription|paywall|membership|account|porn|xxx|nsfw|hentai|onlyfans|escort|hookup|cam-?girl|gambl\w*|casino|sports-?bet\w*|poker|drugs?|narcotic|weapon|firearm|gore|torture|self-?harm|suicide|hate|nazi|extremis\w*|torrent|piracy|warez|crack(ed)?-?software)\b/i;
-  const SITES=[
-    {name:'Wikipedia Roulette',url:'https://en.wikipedia.org/wiki/Special:Random',ch:'02',desc:'A random rabbit hole from the whole of Wikipedia. Could be anything.'},
-    {name:"NASA's Daily Sky",url:'https://apod.nasa.gov/apod/astropix.html',ch:'07',desc:"Today's astronomy picture, straight from NASA."},
-    {name:'xkcd Random',url:'https://xkcd.com/random/comic/',ch:'12',desc:'A random comic about science, love and sarcasm.'},
-    {name:'The Evolution of Trust',url:'https://ncase.me/trust/',ch:'14',desc:'A gorgeous interactive lesson on why people cooperate.'},
-    {name:'Eyes on the Solar System',url:'https://eyes.nasa.gov/apps/solar-system/',ch:'17',desc:'Fly around the real solar system in 3D.'},
-    {name:'The Pudding',url:'https://pudding.cool',ch:'21',desc:'Visual essays that explain culture with data.'},
-    {name:'Radio Garden',url:'https://radio.garden',ch:'23',desc:'Spin the globe, listen to a real radio station anywhere on Earth.'},
-    {name:'Cameron\u2019s World',url:'https://www.cameronsworld.net',ch:'27',desc:'A time capsule of 90s GeoCities chaos.'},
-    {name:'On This Day',url:'https://en.wikipedia.org/wiki/Wikipedia:On_this_day',ch:'31',desc:"What actually happened on today's date, throughout history."},
-    {name:'Project Gutenberg',url:'https://www.gutenberg.org',ch:'36',desc:'Seventy thousand free books, waiting for you.'},
-    {name:'Window Swap',url:'https://www.window-swap.com',ch:'42',desc:"Swap your view for a stranger's window, somewhere else on Earth."},
-    {name:'Free Rice',url:'https://freerice.com',ch:'48',desc:'Answer trivia, donate rice to the hungry with every right answer.'},
-    {name:'Internet Archive',url:'https://archive.org',ch:'53',desc:'Explore a giant library of books, music, films and forgotten snapshots.'},
-    {name:'OpenStreetMap',url:'https://www.openstreetmap.org',ch:'57',desc:'Wander through a beautifully detailed map made by people everywhere.'},
-    {name:'Earth Nullschool',url:'https://earth.nullschool.net',ch:'61',desc:'Watch the living motion of wind and weather sweep around the planet.'},
-    {name:'A Soft Murmur',url:'https://asoftmurmur.com',ch:'64',desc:'Mix gentle ambient sounds into your own tiny weather system.'},
-    {name:'Smithsonian Open Access',url:'https://www.si.edu/openaccess',ch:'68',desc:'Browse millions of fascinating museum objects made free to explore.'},
-    {name:'Radiooooo',url:'https://radiooooo.com',ch:'72',desc:'Pick a place and decade, then listen to a musical time machine.'},
-    {name:'Atlas Obscura',url:'https://www.atlasobscura.com',ch:'76',desc:'Find remarkable places, objects and stories hiding in plain sight.'},
-    {name:'Google Arts & Culture',url:'https://artsandculture.google.com',ch:'81',desc:'Take a colorful walk through art, history and culture from around the world.'}
-  ];
   let seen=[], seenHosts=[];
   try{
     seen=JSON.parse(localStorage.getItem('interest-cat-seen')||'[]').filter(url=>typeof url==='string');
@@ -426,34 +404,13 @@ body.hid *,body.hid *::before,body.hid *::after,body.tvopen #disco,body.tvopen #
       clearTimeout(t); return true;
     }catch(e){ return false; }
   }
-  async function randomMind(){
-    for(let attempt=0;attempt<4;attempt++){
-      try{
-        const response=await fetch('https://en.wikipedia.org/api/rest_v1/page/random/summary',{cache:'no-store'});
-        if(!response.ok) continue;
-        const page=await response.json();
-        const url=canonicalUrl(page?.content_urls?.desktop?.page);
-        if(url&&!seen.includes(url)&&!BLOCK.test(url)) return {name:String(page.title||'A curious subject').slice(0,60),url,desc:String(page.extract||'A fresh subject to explore has appeared.').slice(0,200),ch:String(10+Math.floor(Math.random()*80))};
-      }catch(e){}
-    }
-    return null;
-  }
   async function findSite(topic){
     if(sample){ try{
       const r=await sample([{role:'user',content:'Selection machine token '+randomToken()+'. You are the Interest Cat. You may choose ANY real, currently-live website on the public web; do not limit yourself to the built-in examples, a shortlist, or specific named sites. Go wide: obscure blogs, indie tools, archives, generators, museums, oddities, forgotten corners, and useful surprises. Pick ONE genuinely fascinating website'+(topic?' related to: '+topic:'')+'. It must actually exist and load right now \u2014 never invent or guess a domain, and never suggest a site you are not confident is real. It must be safe-for-work and appropriate for all ages: absolutely no adult, violent, gambling, illegal, hateful, sign-up, login, registration, subscription, membership, account, or paywall-required content. Prefer creative, educational or wonderfully weird independent sites that work inside an iframe. Never suggest theuselessweb.com or neal.fun, nor any of these already shown: '+(seenHosts.slice(-12).join(', ')||'none')+'. Reply with ONLY raw JSON, no markdown fences: {"name":"","url":"https://...","desc":"one playful sentence explaining why this is interesting"}'}],{modelTier:'quick'});
       const j=JSON.parse(r.text.match(/\{[\s\S]*\}/)[0]);
       if(okUrl(j.url)&&!BLOCK.test(j.name)&&!BLOCK.test(j.desc)&&await probeAlive(j.url)) return {name:String(j.name).slice(0,60),url:canonicalUrl(j.url),desc:String(j.desc).slice(0,200),ch:String(10+Math.floor(Math.random()*80))};
     }catch(e){} }
-    const t=(topic||'').toLowerCase();
-    let fresh=SITES.filter(x=>okUrl(x.url)&&!BLOCK.test(x.name+' '+x.desc));
-    if(!fresh.length){
-      const mind=await randomMind();
-      if(mind) return mind;
-      return null;
-    }
-    const hit=fresh.filter(x=>t && (x.name+' '+x.desc).toLowerCase().includes(t));
-    const pool=hit.length?hit:(fresh.length?fresh:SITES);
-    return pool[Math.floor(Math.random()*pool.length)];
+    return null;
   }
 
   // ---------- retro TV virtual site machine ----------
