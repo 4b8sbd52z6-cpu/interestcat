@@ -341,22 +341,28 @@ body.hid *,body.hid *::before,body.hid *::after,body.tvopen #disco,body.tvopen #
   const $=id=>document.getElementById(id);
   const STATIONS=[
     {n:'Original Chill Jazz (built-in)',u:null},
+    {n:'Chill Jazz (YouTube)',yt:'https://www.youtube.com/embed/zR6D5o5bIdU?autoplay=1&loop=1&playlist=zR6D5o5bIdU'},
     {n:'SomaFM Groove Salad',u:'https://ice1.somafm.com/groovesalad-128-mp3'},
     {n:'SomaFM Beat Blender',u:'https://ice1.somafm.com/beatblender-128-mp3'},
     {n:'SomaFM Underground 80s',u:'https://ice1.somafm.com/u80s-128-mp3'},
     {n:'SomaFM Illinois St Lounge',u:'https://ice1.somafm.com/illstreet-128-mp3'}];
-  let st=0, radioOn=false, discoOn=!matchMedia('(prefers-reduced-motion: reduce)').matches, playToken=0;
+  let st=1, radioOn=false, ytFrame=null, discoOn=!matchMedia('(prefers-reduced-motion: reduce)').matches, playToken=0;
   const au=new Audio(); au.preload='none'; au.volume=.5;
   function radioPaint(){
     const on=radioOn||musicOn; $('radio-btn').textContent=on?'\u23f8':'\u25b6'; $('radio-name').textContent='📻 '+STATIONS[st].n;
     $('disco-btn').style.opacity=discoOn?1:.45; document.body.classList.toggle('party',on&&discoOn);
   }
-  function hardStop(){ au.onerror=null; au.pause(); au.removeAttribute('src'); au.load(); stopMusic(); radioOn=false; }
+  function hardStop(){ au.onerror=null; au.pause(); au.removeAttribute('src'); au.load(); if(ytFrame){ ytFrame.remove(); ytFrame=null; } stopMusic(); radioOn=false; }
   function radioStop(){ playToken++; hardStop(); radioPaint(); }
   function radioPlay(){
     const myToken=++playToken;
     hardStop();
     const s=STATIONS[st];
+    if(s.yt){
+      ytFrame=document.createElement('iframe'); ytFrame.src=s.yt; ytFrame.title=s.n; ytFrame.allow='autoplay';
+      ytFrame.style.cssText='position:fixed;left:-10000px;top:-10000px;width:2px;height:2px;border:0;opacity:0;';
+      document.body.appendChild(ytFrame); radioOn=true; radioPaint(); return;
+    }
     if(!s.u){ startMusic(); return; }
     radioPaint();
     au.onerror=()=>{ if(myToken===playToken) skipBroken(); };
@@ -398,9 +404,14 @@ body.hid *,body.hid *::before,body.hid *::after,body.tvopen #disco,body.tvopen #
     {name:'Atlas Obscura',url:'https://www.atlasobscura.com',ch:'76',desc:'Find remarkable places, objects and stories hiding in plain sight.'},
     {name:'Google Arts & Culture',url:'https://artsandculture.google.com',ch:'81',desc:'Take a colorful walk through art, history and culture from around the world.'}
   ];
-  let seen=[], sample=null, cur=null, busy=false;
+  let seen=[];
+  try{ seen=JSON.parse(localStorage.getItem('interest-cat-seen')||'[]').filter(url=>typeof url==='string'); }catch(e){ seen=[]; }
+  const saveSeen=()=>{ try{ localStorage.setItem('interest-cat-seen',JSON.stringify(seen)); }catch(e){} };
+  const randomToken=()=>{ try{ return Array.from(crypto.getRandomValues(new Uint32Array(3))).join('-'); }catch(e){ return Math.random().toString(36).slice(2)+Date.now(); } };
+  let sample=null, cur=null, busy=false;
   (async()=>{ try{ sample = window.claude ? await window.claude.use('sample') : null; }catch(e){ sample=null; } })();
   const canonicalUrl=u=>{ try{ const x=new URL(u); return x.href.replace(/\/$/,''); }catch(e){ return null; } };
+  seen=seen.map(canonicalUrl).filter(Boolean);
   const okUrl=u=>{ const url=canonicalUrl(u); return !!url&&!BLOCK.test(url)&&!seen.includes(url); };
   async function probeAlive(url){
     try{
@@ -411,13 +422,13 @@ body.hid *,body.hid *::before,body.hid *::after,body.tvopen #disco,body.tvopen #
   }
   async function findSite(topic){
     if(sample){ try{
-      const r=await sample([{role:'user',content:'You are the Interest Cat. You may choose ANY real, currently-live website on the public web; do not limit yourself to the built-in examples, a shortlist, or specific named sites. Go wide: obscure blogs, indie tools, archives, generators, museums, oddities, forgotten corners, and useful surprises. Pick ONE genuinely fascinating website'+(topic?' related to: '+topic:'')+'. It must actually exist and load right now \u2014 never invent or guess a domain, and never suggest a site you are not confident is real. It must be safe-for-work and appropriate for all ages: absolutely no adult, violent, gambling, illegal, or hateful content. Prefer creative, educational or wonderfully weird independent sites that work inside an iframe. Never suggest theuselessweb.com or neal.fun, nor any of these already shown: '+(seen.slice(-8).join(', ')||'none')+'. Reply with ONLY raw JSON, no markdown fences: {"name":"","url":"https://...","desc":"one playful sentence"}'}],{modelTier:'quick'});
+      const r=await sample([{role:'user',content:'Selection machine token '+randomToken()+'. You are the Interest Cat. You may choose ANY real, currently-live website on the public web; do not limit yourself to the built-in examples, a shortlist, or specific named sites. Go wide: obscure blogs, indie tools, archives, generators, museums, oddities, forgotten corners, and useful surprises. Pick ONE genuinely fascinating website'+(topic?' related to: '+topic:'')+'. It must actually exist and load right now \u2014 never invent or guess a domain, and never suggest a site you are not confident is real. It must be safe-for-work and appropriate for all ages: absolutely no adult, violent, gambling, illegal, hateful, sign-up, login, registration, subscription, membership, account, or paywall-required content. Prefer creative, educational or wonderfully weird independent sites that work inside an iframe. Never suggest theuselessweb.com or neal.fun, nor any of these already shown: '+(seen.slice(-8).join(', ')||'none')+'. Reply with ONLY raw JSON, no markdown fences: {"name":"","url":"https://...","desc":"one playful sentence explaining why this is interesting"}'}],{modelTier:'quick'});
       const j=JSON.parse(r.text.match(/\{[\s\S]*\}/)[0]);
       if(okUrl(j.url)&&!BLOCK.test(j.name)&&!BLOCK.test(j.desc)&&await probeAlive(j.url)) return {name:String(j.name).slice(0,60),url:canonicalUrl(j.url),desc:String(j.desc).slice(0,200),ch:String(10+Math.floor(Math.random()*80))};
     }catch(e){} }
     const t=(topic||'').toLowerCase();
     let fresh=SITES.filter(x=>okUrl(x.url)&&!BLOCK.test(x.name+' '+x.desc));
-    if(!fresh.length){ seen=[]; fresh=SITES.filter(x=>!BLOCK.test(x.name+' '+x.desc)); }
+    if(!fresh.length){ seen=[]; saveSeen(); fresh=SITES.filter(x=>!BLOCK.test(x.name+' '+x.desc)); }
     const hit=fresh.filter(x=>t && (x.name+' '+x.desc).toLowerCase().includes(t));
     const pool=hit.length?hit:(fresh.length?fresh:SITES);
     return pool[Math.floor(Math.random()*pool.length)];
@@ -434,7 +445,7 @@ body.hid *,body.hid *::before,body.hid *::after,body.tvopen #disco,body.tvopen #
       tv.classList.add('show'); document.body.classList.add('tvopen'); stat.classList.add('on'); frame.src='about:blank';
       $('tv-channel').textContent='SCANNING THE WEB\u2026'; $('tv-url').textContent=''; speak('Consulting the public web\u2026',true);
       const [site]=await Promise.all([findSite(topic),wait(900)]);
-      seen.push(canonicalUrl(site.url)); cur=site; setZoom(1);
+      seen.push(canonicalUrl(site.url)); saveSeen(); cur=site; setZoom(1);
       frame.onload=()=>stat.classList.remove('on');
       setTimeout(()=>stat.classList.remove('on'),1800);
       frame.src=site.url;
