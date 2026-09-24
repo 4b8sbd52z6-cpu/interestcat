@@ -414,22 +414,39 @@ body.hid *,body.hid *::before,body.hid *::after,body.tvopen #disco,body.tvopen #
       clearTimeout(t); return true;
     }catch(e){ return false; }
   }
+  async function discoverFromWeb(topic){
+    const sparks=['tiny web experiments','obscure museums','interactive maps','strange history','creative coding','independent tools','beautiful data','odd archives','public domain art','small internet projects'];
+    const query=topic||sparks[Math.floor(Math.random()*sparks.length)];
+    try{
+      const response=await withTimeout(fetch('https://api.duckduckgo.com/?q='+encodeURIComponent(query)+'&format=json&no_html=1&skip_disambig=1',{cache:'no-store'}),4500);
+      if(!response.ok) return null;
+      const data=await response.json();
+      const topics=[];
+      const collect=items=>(items||[]).forEach(item=>{ if(item.Topics) collect(item.Topics); else if(item.FirstURL&&item.Text) topics.push(item); });
+      collect(data.RelatedTopics);
+      const candidates=topics.filter(item=>{ const host=hostKey(item.FirstURL); return host&&!seenHosts.includes(host)&&okUrl(item.FirstURL)&&!BLOCK.test(item.Text); });
+      if(!candidates.length) return null;
+      const pick=candidates[Math.floor(Math.random()*candidates.length)];
+      return {name:String(pick.Text).split(' - ')[0].slice(0,60),url:canonicalUrl(pick.FirstURL),desc:String(pick.Text).slice(0,200),ch:String(10+Math.floor(Math.random()*80))};
+    }catch(e){ return null; }
+  }
   async function findSite(topic){
     if(sample){ try{
       const r=await withTimeout(sample([{role:'user',content:'Selection machine token '+randomToken()+'. You are the Interest Cat. You may choose ANY real, currently-live website on the public web; do not limit yourself to the built-in examples, a shortlist, or specific named sites. Go wide: obscure blogs, indie tools, archives, generators, museums, oddities, forgotten corners, and useful surprises. Pick ONE genuinely fascinating website'+(topic?' related to: '+topic:'')+'. It must actually exist and load right now \u2014 never invent or guess a domain, and never suggest a site you are not confident is real. It must be safe-for-work and appropriate for all ages: absolutely no adult, violent, gambling, illegal, hateful, sign-up, login, registration, subscription, membership, account, or paywall-required content. Prefer creative, educational or wonderfully weird independent sites that work inside an iframe. Never suggest theuselessweb.com or neal.fun, nor any of these already shown: '+(seenHosts.slice(-12).join(', ')||'none')+'. Reply with ONLY raw JSON, no markdown fences: {"name":"","url":"https://...","desc":"one playful sentence explaining why this is interesting"}'}],{modelTier:'quick'}),5000);
       const j=JSON.parse(r.text.match(/\{[\s\S]*\}/)[0]);
       if(okUrl(j.url)&&!BLOCK.test(j.name)&&!BLOCK.test(j.desc)&&await probeAlive(j.url)) return {name:String(j.name).slice(0,60),url:canonicalUrl(j.url),desc:String(j.desc).slice(0,200),ch:String(10+Math.floor(Math.random()*80))};
     }catch(e){} }
-    return null;
+    return await discoverFromWeb(topic);
   }
 
   // ---------- retro TV virtual site machine ----------
   const wait=ms=>new Promise(r=>setTimeout(r,ms));
-  const tv=$('tv-overlay'), frame=$('tv-frame'), stat=$('tv-static'); let zoom=1;
+  const tv=$('tv-overlay'), frame=$('tv-frame'), stat=$('tv-static'); let zoom=1, tvMode='ai';
   function setZoom(z){ zoom=Math.min(3,Math.max(.4,Math.round(z*10)/10)); frame.style.width=(100/zoom)+'%'; frame.style.height=(100/zoom)+'%'; frame.style.transform='scale('+zoom+')'; $('zval').textContent=Math.round(zoom*100)+'%'; }
   $('zin').onclick=()=>setZoom(zoom+.2); $('zout').onclick=()=>setZoom(zoom-.2); $('zreset').onclick=()=>setZoom(1);
   async function tuneIn(){
     if(busy) return; busy=true; const topic=$('question').value.trim();
+    tvMode='ai'; $('tv-again').textContent='↻ next site';
     try{
       tv.classList.add('show'); document.body.classList.add('tvopen'); stat.classList.add('on'); frame.src='about:blank';
       $('tv-channel').textContent='SCANNING THE WEB\u2026'; $('tv-url').textContent=''; speak('Consulting the public web\u2026',true);
@@ -452,6 +469,7 @@ body.hid *,body.hid *::before,body.hid *::after,body.tvopen #disco,body.tvopen #
   }
   async function wikiRoulette(){
     if(busy) return; busy=true;
+    tvMode='wiki'; $('tv-again').textContent='↻ spin again';
     $('wiki-btn').classList.add('spinning'); $('wiki-btn').textContent='◌ SLOTS · SPINNING';
     try{
       tv.classList.add('show'); document.body.classList.add('tvopen'); stat.classList.add('on'); frame.src='about:blank';
@@ -476,7 +494,7 @@ body.hid *,body.hid *::before,body.hid *::after,body.tvopen #disco,body.tvopen #
   ['interest-btn','ask-btn'].forEach(id=>$(id).addEventListener('click',tuneIn));
   $('wiki-btn').addEventListener('click',wikiRoulette);
   $('question').addEventListener('keydown',e=>{ if(e.key==='Enter') tuneIn(); });
-  $('tv-again').onclick=()=>{ $('question').value=''; tuneIn(); };
+  $('tv-again').onclick=()=>{ $('question').value=''; tvMode==='wiki'?wikiRoulette():tuneIn(); };
   $('tv-open').onclick=()=>{ if(cur) window.open(cur.url,'_blank','noopener'); };
   const closeTv=()=>{ tv.classList.remove('show'); document.body.classList.remove('tvopen'); frame.src='about:blank'; speechSynthesis.cancel(); };
   $('tv-close').onclick=closeTv; tv.addEventListener('click',e=>{ if(e.target===tv) closeTv(); });
